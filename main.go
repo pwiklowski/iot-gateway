@@ -490,6 +490,7 @@ func main() {
 				}
 				if userInfo.Username == "" {
 					log.Println("Connection not authorized")
+					c.Disconnect()
 					return
 				}
 				log.Println("New connection authorized for " + userInfo.Username)
