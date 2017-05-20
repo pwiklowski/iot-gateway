@@ -102,10 +102,10 @@ func NewAlexaEndpoint(app *iris.Framework, hubConnections *list.List) *AlexaEndp
 }
 
 func onTurnOnOffRequest(clientConnection *ClientConnection, device *IotDevice, value bool) {
-	setDeviceValue(clientConnection, device.ID, "/master", `{"value":`+strconv.FormatBool(value)+`}`)
+	setDeviceValue(clientConnection, device.UUID, "/master", `{"value":`+strconv.FormatBool(value)+`}`)
 }
 func onSetPercentRequest(clientConnection *ClientConnection, device *IotDevice, resource string, value int64) {
-	log.Println("onSetPercentRequest " + device.ID + resource)
+	log.Println("onSetPercentRequest " + device.UUID + resource)
 	resourceType := device.getVariable(resource).ResourceType
 	variable := gjson.Parse(device.getVariable(resource).Value)
 	log.Println("onSetPercentRequest " + resource + " variable:" + device.getVariable(resource).Value)
@@ -124,7 +124,7 @@ func onSetPercentRequest(clientConnection *ClientConnection, device *IotDevice, 
 
 		newValue := value * max / 100
 
-		setDeviceValue(clientConnection, device.ID, resource, `{"dimmingSetting":`+strconv.FormatInt(newValue, 10)+`}`)
+		setDeviceValue(clientConnection, device.UUID, resource, `{"dimmingSetting":`+strconv.FormatInt(newValue, 10)+`}`)
 	}
 }
 func onChangePercentRequest(conn *ClientConnection, device *IotDevice, resource string, value int64) {
@@ -157,7 +157,7 @@ func onChangePercentRequest(conn *ClientConnection, device *IotDevice, resource 
 		if newValue < 0 {
 			newValue = 0
 		}
-		setDeviceValue(conn, device.ID, resource, `{"dimmingSetting":`+strconv.FormatInt(newValue, 10)+`}`)
+		setDeviceValue(conn, device.UUID, resource, `{"dimmingSetting":`+strconv.FormatInt(newValue, 10)+`}`)
 	}
 }
 
@@ -178,11 +178,11 @@ func handleAlexaMessage(message string, hubConnections *list.List, userInfo *Aut
 			if userInfo.Username != "" && con.Username == userInfo.Username {
 				for d := con.DeviceList.Front(); d != nil; d = d.Next() {
 					device := d.Value.(*IotDevice)
-					log.Println("Adding device " + device.ID)
+					log.Println("Adding device " + device.UUID)
 
 					if device.getVariable("/master") != nil {
 						dev := AlexaDevice{
-							ApplicanceID:        con.Uuid + ":" + device.ID,
+							ApplicanceID:        con.Uuid + ":" + device.UUID,
 							ManufacturerName:    MANUFACTURER_NAME,
 							ModelName:           "The Best Model",
 							FriendlyName:        device.Name,
@@ -199,7 +199,7 @@ func handleAlexaMessage(message string, hubConnections *list.List, userInfo *Aut
 					for _, variable := range device.Variables {
 						if variable.ResourceType == "oic.r.light.dimming" {
 							dev := AlexaDevice{
-								ApplicanceID:        con.Uuid + ":" + device.ID + ":" + strings.Replace(variable.Href, "/", "_", -1),
+								ApplicanceID:        con.Uuid + ":" + device.UUID + ":" + strings.Replace(variable.Href, "/", "_", -1),
 								ManufacturerName:    MANUFACTURER_NAME,
 								ModelName:           "The Best Model",
 								FriendlyName:        variable.Name,

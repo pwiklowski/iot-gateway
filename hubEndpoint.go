@@ -24,8 +24,8 @@ type IotVariable struct {
 }
 
 type IotDevice struct {
-	ID        string
-	Name      string
+	UUID      string         `json:"uuid"`
+	Name      string         `json:"name"`
 	Variables []*IotVariable `json:"variables"`
 }
 
@@ -40,7 +40,7 @@ func (device *IotDevice) getVariable(href string) *IotVariable {
 
 func (connection *ClientConnection) getDevice(uuid string) *IotDevice {
 	for device := connection.DeviceList.Front(); device != nil; device = device.Next() {
-		if device.Value.(*IotDevice).ID == uuid {
+		if device.Value.(*IotDevice).UUID == uuid {
 			return device.Value.(*IotDevice)
 		}
 	}
@@ -153,11 +153,11 @@ func parseDeviceList(conn *ClientConnection, message string) {
 		}
 		log.Println("Add new device id" + deviceID)
 		d := &IotDevice{
-			ID:   deviceID,
+			UUID: deviceID,
 			Name: deviceData.Get("name").String(),
 		}
 
-		sendRequest(conn, `{"name":"RequestSubscribeDevice", "uuid":"`+d.ID+`"}`, nil)
+		sendRequest(conn, `{"name":"RequestSubscribeDevice", "uuid":"`+d.UUID+`"}`, nil)
 
 		for _, variableData := range deviceData.Get("variables").Array() {
 			v := &IotVariable{
@@ -176,14 +176,14 @@ func parseDeviceList(conn *ClientConnection, message string) {
 	for device := conn.DeviceList.Front(); device != nil; device = device.Next() {
 		found := false
 		for _, deviceID := range deviceIDs {
-			if device.Value.(*IotDevice).ID == deviceID.String() {
+			if device.Value.(*IotDevice).UUID == deviceID.String() {
 				found = true
 			}
 		}
 		if !found {
-			log.Println("Remove device id" + device.Value.(*IotDevice).ID)
+			log.Println("Remove device id" + device.Value.(*IotDevice).UUID)
 
-			sendRequest(conn, `{"name":"RequestUnsubscribeDevice", "uuid":"`+device.Value.(*IotDevice).ID+`"}`, nil)
+			sendRequest(conn, `{"name":"RequestUnsubscribeDevice", "uuid":"`+device.Value.(*IotDevice).UUID+`"}`, nil)
 			conn.DeviceList.Remove(device)
 		}
 	}

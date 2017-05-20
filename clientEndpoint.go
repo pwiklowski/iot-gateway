@@ -16,8 +16,8 @@ type ClientConnectionServer struct {
 }
 
 type ResponseIotHubDevices struct {
-	Uuid    string
-	Name    string
+	Uuid    string       `json:"uuid"`
+	Name    string       `json:"name"`
 	Devices []*IotDevice `json:"devices"`
 }
 
