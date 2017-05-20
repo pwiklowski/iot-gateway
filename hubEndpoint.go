@@ -196,3 +196,8 @@ func sendRequest(conn *ClientConnection, payload string, callback RequestCallbac
 	conn.Connection.EmitMessage([]byte(`{ "mid":` + strconv.FormatInt(conn.Mid, 10) + `, "payload":` + payload + `}`))
 	conn.Mid++
 }
+
+func sendResponse(conn *ClientConnection, mid int64, name string, payload string) {
+	log.Println("sendRequest " + payload)
+	conn.Connection.EmitMessage([]byte(`{ "mid":` + strconv.FormatInt(mid, 10) + `,"name":"` + name + `", "payload":` + payload + `}`))
+}

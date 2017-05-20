@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 
 	"container/list"
@@ -12,6 +13,12 @@ import (
 type ClientConnectionServer struct {
 	WebSocketServer websocket.Server
 	HubConnections  *list.List
+}
+
+type ResponseIotHubDevices struct {
+	Uuid    string
+	Name    string
+	Devices []*IotDevice `json:"devices"`
 }
 
 //New client connection server
@@ -33,20 +40,13 @@ func onClientConnect(c websocket.Connection, hubConnections *list.List) {
 	log.Println("New client connection", c.ID())
 	newConnection := &ClientConnection{
 		Connection: c,
-		Mid:        1,
-		Callbacks:  make(map[int64]RequestCallback)}
+	}
 
 	c.OnMessage(func(messageBytes []byte) {
 		message := string(messageBytes)
 		messageJson := gjson.Parse(message)
 
 		mid := gjson.Get(message, "mid").Int()
-
-		callback := newConnection.Callbacks[mid]
-		if callback != nil {
-			callback(message)
-			delete(newConnection.Callbacks, mid)
-		}
 
 		eventName := messageJson.Get("name").String()
 
@@ -61,12 +61,18 @@ func onClientConnect(c websocket.Connection, hubConnections *list.List) {
 			}
 			if userInfo.Username == "" {
 				log.Println("Connection not authorized")
+				sendResponse(newConnection, mid, "ResponseAuthorize", `{"status":"error"}`)
 				c.Disconnect()
 				return
 			}
 			log.Println("New connection authorized for " + userInfo.Username)
+
+			newConnection.Username = userInfo.Username
+
+			sendResponse(newConnection, mid, "ResponseAuthorize", `{"status":"ok"}`)
+
 		} else if eventName == "RequestGetDevices" {
-			handleGetDeviceList(newConnection)
+			handleGetDeviceList(newConnection, hubConnections, mid)
 		}
 
 	})
@@ -76,6 +82,25 @@ func onClientConnect(c websocket.Connection, hubConnections *list.List) {
 	})
 }
 
-func handleGetDeviceList(conn *ClientConnection) {
+func handleGetDeviceList(conn *ClientConnection, hubConnections *list.List, mid int64) {
+	var devicesList []ResponseIotHubDevices
 
+	for e := hubConnections.Front(); e != nil; e = e.Next() {
+		con := e.Value.(*ClientConnection)
+		log.Println(con)
+		if con.Username != "" && con.Username == conn.Username {
+			devices := ResponseIotHubDevices{}
+			devices.Uuid = con.Uuid
+			devices.Name = con.Name
+
+			for d := con.DeviceList.Front(); d != nil; d = d.Next() {
+				device := d.Value.(*IotDevice)
+				devices.Devices = append(devices.Devices, device)
+			}
+			devicesList = append(devicesList, devices)
+		}
+	}
+
+	devs, _ := json.Marshal(devicesList)
+	sendResponse(conn, mid, "ResponseGetDevices", `{"hubs":`+string(devs)+`}`)
 }
