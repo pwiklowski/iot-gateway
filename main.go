@@ -160,6 +160,10 @@ type OAuthData struct {
 	Secret string
 }
 
+func handleGetDeviceList(conn *ClientConnection) {
+
+}
+
 func getUserInfo(token string, auth *OAuthData) (user *AuthUserData, e error) {
 
 	form := url.Values{
@@ -445,7 +449,12 @@ func main() {
 		Endpoint:       "/connect",
 		MaxMessageSize: 102400,
 	})
+	wsClient := websocket.New(websocket.Config{
+		Endpoint:       "/connectClient",
+		MaxMessageSize: 102400,
+	})
 	app.Adapt(ws)
+	app.Adapt(wsClient)
 
 	hubConnections := list.New()
 
@@ -458,6 +467,60 @@ func main() {
 		Secret: os.Getenv("AUTH_ALEXA_CLIENT_SECRET"),
 	}
 
+	wsClient.OnConnection(func(c websocket.Connection) {
+		log.Println("New client connection", c.ID())
+		newConnection := &ClientConnection{
+			Connection: c,
+			Mid:        1,
+			Callbacks:  make(map[int64]RequestCallback)}
+		hubConnections.PushBack(newConnection)
+
+		c.OnMessage(func(messageBytes []byte) {
+			message := string(messageBytes)
+			messageJson := gjson.Parse(message)
+
+			mid := gjson.Get(message, "mid").Int()
+
+			callback := newConnection.Callbacks[mid]
+			if callback != nil {
+				callback(message)
+				delete(newConnection.Callbacks, mid)
+			}
+
+			eventName := messageJson.Get("name").String()
+
+			log.Println("Event: " + eventName)
+			log.Println("Event: " + messageJson.String())
+			if eventName == "RequestAuthorize" {
+				token := messageJson.Get("payload.token").String()
+				userInfo, err := getUserInfo(token, hubAuth)
+				if err != nil {
+					log.Println(err)
+					return
+				}
+				if userInfo.Username == "" {
+					log.Println("Connection not authorized")
+					c.Disconnect()
+					return
+				}
+				log.Println("New connection authorized for " + userInfo.Username)
+			} else if eventName == "RequestGetDevices" {
+				handleGetDeviceList(newConnection)
+			}
+
+		})
+
+		c.OnDisconnect(func() {
+			for e := hubConnections.Front(); e != nil; e = e.Next() {
+				con := e.Value.(*ClientConnection)
+				if con.Connection.ID() == c.ID() {
+					hubConnections.Remove(e)
+					break
+				}
+			}
+			log.Println("Connection with ID: " + c.ID() + " has been disconnected!")
+		})
+	})
 	ws.OnConnection(func(c websocket.Connection) {
 		log.Println("New connection", c.ID())
 		newConnection := &ClientConnection{
