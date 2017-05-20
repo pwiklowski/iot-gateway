@@ -320,7 +320,7 @@ func onChangePercentRequest(conn *ClientConnection, device *IotDevice, resource 
 	}
 }
 
-func handleAlexaMessage(message string, clientConnections *list.List, userInfo *AuthUserData, c *iris.Context) {
+func handleAlexaMessage(message string, hubConnections *list.List, userInfo *AuthUserData, c *iris.Context) {
 	namespace := gjson.Get(message, "header.namespace").String()
 
 	log.Println("handleAlexaMessage: " + message)
@@ -331,7 +331,7 @@ func handleAlexaMessage(message string, clientConnections *list.List, userInfo *
 		response.Header.PayloadVersion = "2"
 		response.Header.MessageID = generateMessageUUID()
 
-		for e := clientConnections.Front(); e != nil; e = e.Next() {
+		for e := hubConnections.Front(); e != nil; e = e.Next() {
 			con := e.Value.(*ClientConnection)
 			if userInfo.Username != "" && con.Username == userInfo.Username {
 				for d := con.DeviceList.Front(); d != nil; d = d.Next() {
@@ -394,7 +394,7 @@ func handleAlexaMessage(message string, clientConnections *list.List, userInfo *
 			resource = strings.Replace(applianceID[2], "_", "/", -1)
 		}
 		var clientConnection *ClientConnection
-		for e := clientConnections.Front(); e != nil; e = e.Next() {
+		for e := hubConnections.Front(); e != nil; e = e.Next() {
 			if e.Value.(*ClientConnection).Uuid == connectionID {
 				clientConnection = e.Value.(*ClientConnection)
 			}
@@ -447,7 +447,7 @@ func main() {
 	})
 	app.Adapt(ws)
 
-	clientConnections := list.New()
+	hubConnections := list.New()
 
 	hubAuth := &OAuthData{
 		Client: os.Getenv("AUTH_HUB_CLIENT"),
@@ -464,7 +464,7 @@ func main() {
 			Connection: c,
 			Mid:        1,
 			Callbacks:  make(map[int64]RequestCallback)}
-		clientConnections.PushBack(newConnection)
+		hubConnections.PushBack(newConnection)
 
 		c.OnMessage(func(messageBytes []byte) {
 			message := string(messageBytes)
@@ -509,10 +509,10 @@ func main() {
 		})
 
 		c.OnDisconnect(func() {
-			for e := clientConnections.Front(); e != nil; e = e.Next() {
+			for e := hubConnections.Front(); e != nil; e = e.Next() {
 				con := e.Value.(*ClientConnection)
 				if con.Connection.ID() == c.ID() {
-					clientConnections.Remove(e)
+					hubConnections.Remove(e)
 					break
 				}
 			}
@@ -536,7 +536,7 @@ func main() {
 			return
 		}
 
-		handleAlexaMessage(body, clientConnections, userInfo, c)
+		handleAlexaMessage(body, hubConnections, userInfo, c)
 	})
 
 	app.Listen(":12345")
