@@ -51,14 +51,16 @@ func setDeviceValue(clientConnection *ClientConnection, deviceID string, resourc
 
 func main() {
 	hubConnections := list.New()
+	webClietnConnections := list.New()
 	app := iris.New()
 	app.Adapt(iris.DevLogger(), httprouter.New())
 
-	hubConnectionServer := NewHubEndpoint(hubConnections)
+	clientConnectionServer := NewClientEndpoint(hubConnections, webClietnConnections)
+	app.Adapt(clientConnectionServer.WebSocketServer)
+
+	hubConnectionServer := NewHubEndpoint(hubConnections, clientConnectionServer)
 	app.Adapt(hubConnectionServer.WebSocketServer)
 
-	clientConnectionServer := NewClientEndpoint(hubConnections)
-	app.Adapt(clientConnectionServer.WebSocketServer)
 
 	alexaEndpoint := NewAlexaEndpoint(app, hubConnections)
 	_ = alexaEndpoint

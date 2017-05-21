@@ -10,9 +10,10 @@ import (
 	"gopkg.in/kataras/iris.v6/adaptors/websocket"
 )
 
-type AlexaConnectionEndpoint struct {
-	WebSocketServer websocket.Server
-	HubConnections  *list.List
+type HubConnectionEndpoint struct {
+	WebSocketServer        websocket.Server
+	HubConnections         *list.List
+	ClientConnectionServer *ClientConnectionServer
 }
 
 type IotVariable struct {
@@ -20,11 +21,12 @@ type IotVariable struct {
 	ResourceType string `json:"rt"`
 	Href         string `json:"href"`
 	Name         string `json:"n"`
-	Value        string
+	Value        string `json:"value"`
 }
 
 type IotDevice struct {
 	UUID      string         `json:"uuid"`
+	HubUUID   string         `json:"hubUuid"`
 	Name      string         `json:"name"`
 	Variables []*IotVariable `json:"variables"`
 }
@@ -48,21 +50,21 @@ func (connection *ClientConnection) getDevice(uuid string) *IotDevice {
 }
 
 //New client connection server
-func NewHubEndpoint(hubConnections *list.List) *ClientConnectionServer {
-	server := ClientConnectionServer{}
+func NewHubEndpoint(hubConnections *list.List, clientConnectionServer *ClientConnectionServer) *HubConnectionEndpoint {
+	server := HubConnectionEndpoint{}
 	server.HubConnections = hubConnections
-
+	server.ClientConnectionServer = clientConnectionServer
 	server.WebSocketServer = websocket.New(websocket.Config{
 		Endpoint:       "/connect",
 		MaxMessageSize: 102400,
 	})
 	server.WebSocketServer.OnConnection(func(c websocket.Connection) {
-		onHubConnect(c, server.HubConnections)
+		server.onHubConnect(c, server.HubConnections)
 	})
 	return &server
 }
 
-func onHubConnect(c websocket.Connection, hubConnections *list.List) {
+func (server *HubConnectionEndpoint) onHubConnect(c websocket.Connection, hubConnections *list.List) {
 	log.Println("New connection", c.ID())
 	newConnection := &ClientConnection{
 		Connection: c,
@@ -107,8 +109,9 @@ func onHubConnect(c websocket.Connection, hubConnections *list.List) {
 			newConnection.Name = messageJson.Get("payload.name").String()
 		} else if eventName == "EventDeviceListUpdate" {
 			parseDeviceList(newConnection, message)
+			server.ClientConnectionServer.notifyDeviceListChange()
 		} else if eventName == "EventValueUpdate" {
-			handleValueUpdate(newConnection, messageJson)
+			server.handleValueUpdate(newConnection, messageJson)
 		}
 	})
 
@@ -125,7 +128,7 @@ func onHubConnect(c websocket.Connection, hubConnections *list.List) {
 
 }
 
-func handleValueUpdate(conn *ClientConnection, message gjson.Result) {
+func (server *HubConnectionEndpoint) handleValueUpdate(conn *ClientConnection, message gjson.Result) {
 
 	deviceID := message.Get("payload.di").String()
 	resourceID := message.Get("payload.resource").String()
@@ -141,6 +144,8 @@ func handleValueUpdate(conn *ClientConnection, message gjson.Result) {
 	device.getVariable(resourceID).Value = value
 
 	log.Println("handleValueUpdate " + conn.getDevice(deviceID).getVariable(resourceID).Value)
+
+	server.ClientConnectionServer.notifyDeviceResourceChange(device.HubUUID, device.UUID, resourceID, value)
 }
 func parseDeviceList(conn *ClientConnection, message string) {
 	devices := gjson.Get(message, "payload.devices").Array()
@@ -187,6 +192,7 @@ func parseDeviceList(conn *ClientConnection, message string) {
 			conn.DeviceList.Remove(device)
 		}
 	}
+
 }
 func sendRequest(conn *ClientConnection, payload string, callback RequestCallback) {
 	log.Println("sendRequest " + payload)
@@ -197,7 +203,7 @@ func sendRequest(conn *ClientConnection, payload string, callback RequestCallbac
 	conn.Mid++
 }
 
-func sendResponse(conn *ClientConnection, mid int64, name string, payload string) {
+func sendResponse(conn websocket.Connection, mid int64, name string, payload string) {
 	log.Println("sendRequest " + payload)
-	conn.Connection.EmitMessage([]byte(`{ "mid":` + strconv.FormatInt(mid, 10) + `,"name":"` + name + `", "payload":` + payload + `}`))
+	conn.EmitMessage([]byte(`{ "mid":` + strconv.FormatInt(mid, 10) + `,"name":"` + name + `", "payload":` + payload + `}`))
 }
