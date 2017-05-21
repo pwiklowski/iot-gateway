@@ -33,6 +33,16 @@ type WebClientConnection struct {
 	Subscriptions *list.List
 }
 
+func (server *ClientConnectionServer) getHubConnection(hubUUID string) *HubConnection {
+	for e := server.HubConnections.Front(); e != nil; e = e.Next() {
+		con := e.Value.(*HubConnection)
+		if con.Uuid == hubUUID {
+			return con
+		}
+	}
+	return nil
+}
+
 func (server *ClientConnectionServer) notifyDeviceListChange() {
 	for e := server.WebClientConnections.Front(); e != nil; e = e.Next() {
 		con := e.Value.(*WebClientConnection)
@@ -41,18 +51,15 @@ func (server *ClientConnectionServer) notifyDeviceListChange() {
 		sendResponse(con.Connection, -1, "EventDeviceListUpdate", `{"hubs":`+string(devs)+`}`)
 	}
 }
-func (server *ClientConnectionServer) notifyDeviceResourceChange(hubUUID string, uuid string, resource string, value string) {
-	log.Println("notifyDeviceResourceChange", uuid, resource, value)
+func (server *ClientConnectionServer) notifyDeviceResourceChange(hubUUID string, uuid string) {
+	log.Println("notifyDeviceResourceChange" + uuid)
 	for e := server.WebClientConnections.Front(); e != nil; e = e.Next() {
 		con := e.Value.(*WebClientConnection)
 		log.Println("web client connection sub count=", con.Subscriptions.Len())
 		for e := con.Subscriptions.Front(); e != nil; e = e.Next() {
 			s := e.Value.(*WebClientSubscription)
-			log.Println("found subscription", s.HubUuid, s.Uuid)
-
 			if s.Uuid == uuid && s.HubUuid == hubUUID {
-				sendResponse(con.Connection, -1, "EventValueUpdate",
-					`{"uuid":"`+uuid+`", "hubUuid":"`+hubUUID+`", "resource":"`+resource+`", "value":`+value+`}`)
+				server.sendDeviceUpdateEvent(con, uuid, hubUUID)
 			}
 		}
 
@@ -114,11 +121,11 @@ func (server *ClientConnectionServer) onClientConnect(c websocket.Connection, hu
 			sendResponse(newConnection.Connection, mid, "ResponseAuthorize", `{"status":"ok"}`)
 
 		} else if eventName == "RequestGetDevices" {
-			handleGetDeviceList(newConnection, hubConnections, mid)
+			server.handleGetDeviceList(newConnection, mid)
 		} else if eventName == "RequestSubscribeDevice" {
-			handleRequestSubscribeDevice(newConnection, hubConnections, messageJson.Get("payload.uuid").String(), messageJson.Get("payload.hubUuid").String())
+			server.handleRequestSubscribeDevice(newConnection, messageJson.Get("payload.uuid").String(), messageJson.Get("payload.hubUuid").String())
 		} else if eventName == "RequestUnsubscribeDevice" {
-			handleRequestUnsubscribeDevice(newConnection, hubConnections, messageJson.Get("payload.uuid").String(), messageJson.Get("payload.hubUuid").String())
+			server.handleRequestUnsubscribeDevice(newConnection, messageJson.Get("payload.uuid").String(), messageJson.Get("payload.hubUuid").String())
 		}
 
 	})
@@ -135,16 +142,29 @@ func (server *ClientConnectionServer) onClientConnect(c websocket.Connection, hu
 	})
 }
 
-func handleRequestSubscribeDevice(conn *WebClientConnection, hubConnections *list.List, uuid string, hubUuid string) {
+func (server *ClientConnectionServer) sendDeviceUpdateEvent(conn *WebClientConnection, uuid string, hubUuid string) {
+	hubConnection := server.getHubConnection(hubUuid)
+	if hubConnection != nil {
+		device := hubConnection.getDevice(uuid)
+		deviceData, _ := json.Marshal(device)
+		sendResponse(conn.Connection, -1, "EventDeviceUpdate", string(deviceData))
+	}
+}
+
+func (server *ClientConnectionServer) handleRequestSubscribeDevice(conn *WebClientConnection, uuid string, hubUuid string) {
 	log.Println("Add subscribe " + uuid + " " + hubUuid)
+	//todo check if client can subscribe to device on hub
+
 	sub := &WebClientSubscription{
 		Uuid:    uuid,
 		HubUuid: hubUuid,
 	}
 	conn.Subscriptions.PushBack(sub)
+
+	server.sendDeviceUpdateEvent(conn, uuid, hubUuid)
 }
 
-func handleRequestUnsubscribeDevice(conn *WebClientConnection, hubConnections *list.List, uuid string, hubUuid string) {
+func (server *ClientConnectionServer) handleRequestUnsubscribeDevice(conn *WebClientConnection, uuid string, hubUuid string) {
 	for e := conn.Subscriptions.Front(); e != nil; e = e.Next() {
 		s := e.Value.(*WebClientSubscription)
 		if s.Uuid == uuid && s.HubUuid == hubUuid {
@@ -162,8 +182,8 @@ func createDeviceList(conn *WebClientConnection, hubConnections *list.List) []Re
 		log.Println(con)
 		if con.Username != "" && con.Username == conn.Username {
 			devices := ResponseIotHubDevices{}
-			devices.Uuid = con.Uuid
-			devices.Name = con.Name
+			devices.Uuid = con.Uuid //hub data
+			devices.Name = con.Name //hub data
 
 			for d := con.DeviceList.Front(); d != nil; d = d.Next() {
 				device := d.Value.(*IotDevice)
@@ -176,8 +196,8 @@ func createDeviceList(conn *WebClientConnection, hubConnections *list.List) []Re
 	return devicesList
 }
 
-func handleGetDeviceList(conn *WebClientConnection, hubConnections *list.List, mid int64) {
-	devicesList := createDeviceList(conn, hubConnections)
+func (server *ClientConnectionServer) handleGetDeviceList(conn *WebClientConnection, mid int64) {
+	devicesList := createDeviceList(conn, server.HubConnections)
 	devs, _ := json.Marshal(devicesList)
 	sendResponse(conn.Connection, mid, "ResponseGetDevices", `{"hubs":`+string(devs)+`}`)
 }

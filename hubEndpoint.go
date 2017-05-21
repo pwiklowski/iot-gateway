@@ -145,7 +145,7 @@ func (server *HubConnectionEndpoint) handleValueUpdate(conn *HubConnection, mess
 
 	log.Println("handleValueUpdate " + conn.getDevice(deviceID).getVariable(resourceID).Value)
 
-	server.ClientConnectionServer.notifyDeviceResourceChange(device.HubUUID, device.UUID, resourceID, value)
+	server.ClientConnectionServer.notifyDeviceResourceChange(device.HubUUID, device.UUID)
 }
 func parseDeviceList(conn *HubConnection, message string) {
 	devices := gjson.Get(message, "payload.devices").Array()
