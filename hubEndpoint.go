@@ -101,7 +101,7 @@ func (server *HubConnectionEndpoint) onHubConnect(c websocket.Connection, hubCon
 				return
 			}
 			log.Println("New connection authorized for " + userInfo.Username)
-			sendRequest(newConnection, `{"name":"RequestGetDevices"}`, func(response string) {
+			sendRequest(newConnection, "RequestGetDevices", "{}", func(response string) {
 				parseDeviceList(newConnection, response)
 			})
 			newConnection.Username = userInfo.Username
@@ -165,7 +165,7 @@ func parseDeviceList(conn *HubConnection, message string) {
 			Name: deviceData.Get("name").String(),
 		}
 
-		sendRequest(conn, `{"name":"RequestSubscribeDevice", "uuid":"`+d.UUID+`"}`, nil)
+		sendRequest(conn, "RequestSubscribeDevice", `{"uuid":"`+d.UUID+`"}`, nil)
 
 		for _, variableData := range deviceData.Get("variables").Array() {
 			v := &IotVariable{
@@ -191,18 +191,18 @@ func parseDeviceList(conn *HubConnection, message string) {
 		if !found {
 			log.Println("Remove device id" + device.Value.(*IotDevice).UUID)
 
-			sendRequest(conn, `{"name":"RequestUnsubscribeDevice", "uuid":"`+device.Value.(*IotDevice).UUID+`"}`, nil)
+			sendRequest(conn, "RequestUnsubscribeDevice", `{"uuid":"`+device.Value.(*IotDevice).UUID+`"}`, nil)
 			conn.DeviceList.Remove(device)
 		}
 	}
 
 }
-func sendRequest(conn *HubConnection, payload string, callback RequestCallback) {
-	log.Println("sendRequest " + payload)
+func sendRequest(conn *HubConnection, name string, payload string, callback RequestCallback) {
+	log.Println("sendRequest " + name + " " + payload)
 	if callback != nil {
 		conn.Callbacks[conn.Mid] = callback
 	}
-	conn.Connection.EmitMessage([]byte(`{ "mid":` + strconv.FormatInt(conn.Mid, 10) + `, "payload":` + payload + `}`))
+	conn.Connection.EmitMessage([]byte(`{ "mid":` + strconv.FormatInt(conn.Mid, 10) + `, "name":"` + name + `", "payload":` + payload + `}`))
 	conn.Mid++
 }
 
