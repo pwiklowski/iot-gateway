@@ -65,7 +65,7 @@ func NewHubEndpoint(hubConnections *list.List, clientConnectionServer *ClientCon
 }
 
 func (server *HubConnectionEndpoint) onHubConnect(c websocket.Connection, hubConnections *list.List) {
-	log.Println("New connection", c.ID())
+	log.Println("New HUB connection", c.ID())
 	newConnection := &HubConnection{
 		Connection: c,
 		Mid:        1,
@@ -100,7 +100,7 @@ func (server *HubConnectionEndpoint) onHubConnect(c websocket.Connection, hubCon
 				c.Disconnect()
 				return
 			}
-			log.Println("New connection authorized for " + userInfo.Username)
+			log.Println("New HUB connection authorized for " + userInfo.Username)
 			sendRequest(newConnection, "RequestGetDevices", "{}", func(response string) {
 				parseDeviceList(newConnection, response)
 			})
@@ -207,6 +207,6 @@ func sendRequest(conn *HubConnection, name string, payload string, callback Requ
 }
 
 func sendResponse(conn websocket.Connection, mid int64, name string, payload string) {
-	log.Println("sendRequest " + payload)
+	log.Println("sendResponse" + payload)
 	conn.EmitMessage([]byte(`{ "mid":` + strconv.FormatInt(mid, 10) + `,"name":"` + name + `", "payload":` + payload + `}`))
 }

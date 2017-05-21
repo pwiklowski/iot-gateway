@@ -83,7 +83,7 @@ func NewClientEndpoint(hubConnections *list.List, webClientConnections *list.Lis
 }
 
 func (server *ClientConnectionServer) onClientConnect(c websocket.Connection, hubConnections *list.List) {
-	log.Println("New client connection", c.ID())
+	log.Println("New web client connection", c.ID())
 	newConnection := &WebClientConnection{
 		Connection:    c,
 		Subscriptions: list.New(),
