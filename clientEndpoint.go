@@ -125,6 +125,13 @@ func (server *ClientConnectionServer) onClientConnect(c websocket.Connection, hu
 
 	c.OnDisconnect(func() {
 		log.Println("Connection with ID: " + c.ID() + " has been disconnected!")
+		for e := server.WebClientConnections.Front(); e != nil; e = e.Next() {
+			con := e.Value.(*WebClientConnection)
+			if con.Connection.ID() == c.ID() {
+				server.WebClientConnections.Remove(e)
+				break
+			}
+		}
 	})
 }
 
