@@ -40,7 +40,7 @@ func (device *IotDevice) getVariable(href string) *IotVariable {
 	return nil
 }
 
-func (connection *ClientConnection) getDevice(uuid string) *IotDevice {
+func (connection *HubConnection) getDevice(uuid string) *IotDevice {
 	for device := connection.DeviceList.Front(); device != nil; device = device.Next() {
 		if device.Value.(*IotDevice).UUID == uuid {
 			return device.Value.(*IotDevice)
@@ -66,7 +66,7 @@ func NewHubEndpoint(hubConnections *list.List, clientConnectionServer *ClientCon
 
 func (server *HubConnectionEndpoint) onHubConnect(c websocket.Connection, hubConnections *list.List) {
 	log.Println("New connection", c.ID())
-	newConnection := &ClientConnection{
+	newConnection := &HubConnection{
 		Connection: c,
 		Mid:        1,
 		Callbacks:  make(map[int64]RequestCallback)}
@@ -117,7 +117,7 @@ func (server *HubConnectionEndpoint) onHubConnect(c websocket.Connection, hubCon
 
 	c.OnDisconnect(func() {
 		for e := hubConnections.Front(); e != nil; e = e.Next() {
-			con := e.Value.(*ClientConnection)
+			con := e.Value.(*HubConnection)
 			if con.Connection.ID() == c.ID() {
 				hubConnections.Remove(e)
 				break
@@ -128,7 +128,7 @@ func (server *HubConnectionEndpoint) onHubConnect(c websocket.Connection, hubCon
 
 }
 
-func (server *HubConnectionEndpoint) handleValueUpdate(conn *ClientConnection, message gjson.Result) {
+func (server *HubConnectionEndpoint) handleValueUpdate(conn *HubConnection, message gjson.Result) {
 
 	deviceID := message.Get("payload.di").String()
 	resourceID := message.Get("payload.resource").String()
@@ -147,7 +147,7 @@ func (server *HubConnectionEndpoint) handleValueUpdate(conn *ClientConnection, m
 
 	server.ClientConnectionServer.notifyDeviceResourceChange(device.HubUUID, device.UUID, resourceID, value)
 }
-func parseDeviceList(conn *ClientConnection, message string) {
+func parseDeviceList(conn *HubConnection, message string) {
 	devices := gjson.Get(message, "payload.devices").Array()
 	//Add new devices
 	for _, deviceData := range devices {
@@ -194,7 +194,7 @@ func parseDeviceList(conn *ClientConnection, message string) {
 	}
 
 }
-func sendRequest(conn *ClientConnection, payload string, callback RequestCallback) {
+func sendRequest(conn *HubConnection, payload string, callback RequestCallback) {
 	log.Println("sendRequest " + payload)
 	if callback != nil {
 		conn.Callbacks[conn.Mid] = callback

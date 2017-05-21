@@ -101,10 +101,10 @@ func NewAlexaEndpoint(app *iris.Framework, hubConnections *list.List) *AlexaEndp
 	return endpoint
 }
 
-func onTurnOnOffRequest(clientConnection *ClientConnection, device *IotDevice, value bool) {
-	setDeviceValue(clientConnection, device.UUID, "/master", `{"value":`+strconv.FormatBool(value)+`}`)
+func onTurnOnOffRequest(hubConnection *HubConnection, device *IotDevice, value bool) {
+	setDeviceValue(hubConnection, device.UUID, "/master", `{"value":`+strconv.FormatBool(value)+`}`)
 }
-func onSetPercentRequest(clientConnection *ClientConnection, device *IotDevice, resource string, value int64) {
+func onSetPercentRequest(clientConnection *HubConnection, device *IotDevice, resource string, value int64) {
 	log.Println("onSetPercentRequest " + device.UUID + resource)
 	resourceType := device.getVariable(resource).ResourceType
 	variable := gjson.Parse(device.getVariable(resource).Value)
@@ -127,7 +127,7 @@ func onSetPercentRequest(clientConnection *ClientConnection, device *IotDevice, 
 		setDeviceValue(clientConnection, device.UUID, resource, `{"dimmingSetting":`+strconv.FormatInt(newValue, 10)+`}`)
 	}
 }
-func onChangePercentRequest(conn *ClientConnection, device *IotDevice, resource string, value int64) {
+func onChangePercentRequest(conn *HubConnection, device *IotDevice, resource string, value int64) {
 	resourceType := device.getVariable(resource).ResourceType
 	variable := gjson.Parse(device.getVariable(resource).Value)
 
@@ -173,7 +173,7 @@ func handleAlexaMessage(message string, hubConnections *list.List, userInfo *Aut
 		response.Header.MessageID = generateMessageUUID()
 
 		for e := hubConnections.Front(); e != nil; e = e.Next() {
-			con := e.Value.(*ClientConnection)
+			con := e.Value.(*HubConnection)
 			log.Println(con.Username + " " + userInfo.Username)
 			if userInfo.Username != "" && con.Username == userInfo.Username {
 				for d := con.DeviceList.Front(); d != nil; d = d.Next() {
@@ -235,10 +235,10 @@ func handleAlexaMessage(message string, hubConnections *list.List, userInfo *Aut
 		if len(applianceID) == 3 {
 			resource = strings.Replace(applianceID[2], "_", "/", -1)
 		}
-		var clientConnection *ClientConnection
+		var clientConnection *HubConnection
 		for e := hubConnections.Front(); e != nil; e = e.Next() {
-			if e.Value.(*ClientConnection).Uuid == connectionID {
-				clientConnection = e.Value.(*ClientConnection)
+			if e.Value.(*HubConnection).Uuid == connectionID {
+				clientConnection = e.Value.(*HubConnection)
 			}
 		}
 		if clientConnection == nil {

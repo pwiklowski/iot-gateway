@@ -158,7 +158,7 @@ func createDeviceList(conn *WebClientConnection, hubConnections *list.List) []Re
 	var devicesList []ResponseIotHubDevices
 
 	for e := hubConnections.Front(); e != nil; e = e.Next() {
-		con := e.Value.(*ClientConnection)
+		con := e.Value.(*HubConnection)
 		log.Println(con)
 		if con.Username != "" && con.Username == conn.Username {
 			devices := ResponseIotHubDevices{}

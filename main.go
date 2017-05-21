@@ -10,7 +10,7 @@ import (
 	"gopkg.in/kataras/iris.v6/adaptors/websocket"
 )
 
-type ClientConnection struct {
+type HubConnection struct {
 	Username   string
 	Connection websocket.Connection
 	DeviceList list.List
@@ -45,7 +45,7 @@ type EventDeviceListMessage struct {
 func generateMessageUUID() string {
 	return uuid.NewV4().String()
 }
-func setDeviceValue(clientConnection *ClientConnection, deviceID string, resourceID string, valueObject string) {
+func setDeviceValue(clientConnection *HubConnection, deviceID string, resourceID string, valueObject string) {
 	sendRequest(clientConnection, `{"di":"`+deviceID+`","name":"RequestSetValue", "resource":"`+resourceID+`", "value":`+valueObject+`}`, nil)
 }
 
