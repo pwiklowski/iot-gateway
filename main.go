@@ -46,7 +46,7 @@ func generateMessageUUID() string {
 	return uuid.NewV4().String()
 }
 func setDeviceValue(clientConnection *HubConnection, deviceID string, resourceID string, valueObject string) {
-	sendRequest(clientConnection, `{"di":"`+deviceID+`","name":"RequestSetValue", "resource":"`+resourceID+`", "value":`+valueObject+`}`, nil)
+	sendRequest(clientConnection, "RequestSetValue", `{"di":"`+deviceID+`","resource":"`+resourceID+`", "value":`+valueObject+`}`, nil)
 }
 
 func main() {
