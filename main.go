@@ -46,7 +46,7 @@ func generateMessageUUID() string {
 	return uuid.NewV4().String()
 }
 func setDeviceValue(clientConnection *HubConnection, deviceID string, resourceID string, valueObject string) {
-	sendRequest(clientConnection, "RequestSetValue", `{"di":"`+deviceID+`","resource":"`+resourceID+`", "value":`+valueObject+`}`, nil)
+	sendRequest(clientConnection, "RequestSetValue", `{"uuid":"`+deviceID+`","resource":"`+resourceID+`", "value":`+valueObject+`}`, nil)
 }
 
 func main() {
@@ -60,7 +60,6 @@ func main() {
 
 	hubConnectionServer := NewHubEndpoint(hubConnections, clientConnectionServer)
 	app.Adapt(hubConnectionServer.WebSocketServer)
-
 
 	alexaEndpoint := NewAlexaEndpoint(app, hubConnections)
 	_ = alexaEndpoint
