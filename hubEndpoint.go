@@ -133,7 +133,7 @@ func (server *HubConnectionEndpoint) onHubConnect(c websocket.Connection, hubCon
 
 func (server *HubConnectionEndpoint) handleValueUpdate(conn *HubConnection, message gjson.Result) {
 
-	deviceID := message.Get("payload.di").String()
+	deviceID := message.Get("payload.uuid").String()
 	resourceID := message.Get("payload.resource").String()
 	value := message.Get("payload.value").String()
 

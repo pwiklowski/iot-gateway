@@ -122,6 +122,8 @@ func (server *ClientConnectionServer) onClientConnect(c websocket.Connection, hu
 
 		} else if eventName == "RequestGetDevices" {
 			server.handleGetDeviceList(newConnection, mid)
+		} else if eventName == "RequestSetValue" {
+			server.handleSetValue(newConnection, messageJson)
 		} else if eventName == "RequestSubscribeDevice" {
 			server.handleRequestSubscribeDevice(newConnection, messageJson.Get("payload.uuid").String(), messageJson.Get("payload.hubUuid").String())
 		} else if eventName == "RequestUnsubscribeDevice" {
@@ -200,4 +202,12 @@ func (server *ClientConnectionServer) handleGetDeviceList(conn *WebClientConnect
 	devicesList := createDeviceList(conn, server.HubConnections)
 	devs, _ := json.Marshal(devicesList)
 	sendResponse(conn.Connection, mid, "ResponseGetDevices", `{"hubs":`+string(devs)+`}`)
+}
+func (server *ClientConnectionServer) handleSetValue(conn *WebClientConnection, message gjson.Result) {
+	hubUUID := message.Get("payload.hubUuid").String()
+	deviceUUID := message.Get("payload.uuid").String()
+	resource := message.Get("payload.resource").String()
+	value := message.Get("payload.value").String()
+
+	setDeviceValue(server.getHubConnection(hubUUID), deviceUUID, resource, value)
 }
