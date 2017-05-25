@@ -108,7 +108,6 @@ func (server *HubConnectionEndpoint) onHubConnect(c websocket.Connection, hubCon
 			newConnection.Uuid = messageJson.Get("payload.uuid").String()
 			newConnection.Name = messageJson.Get("payload.name").String()
 
-			server.ClientConnectionServer.notifyDeviceListChange()
 		} else if eventName == "EventDeviceListUpdate" {
 			parseDeviceList(newConnection, message)
 			server.ClientConnectionServer.notifyDeviceListChange()
