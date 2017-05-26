@@ -17,11 +17,11 @@ type HubConnectionEndpoint struct {
 }
 
 type IotVariable struct {
-	Interface    string `json:"if"`
-	ResourceType string `json:"rt"`
-	Href         string `json:"href"`
-	Name         string `json:"n"`
-	Value        string `json:"value"`
+	Interface     string        `json:"if"`
+	ResourceType  string        `json:"rt"`
+	Href          string        `json:"href"`
+	Name          string        `json:"n"`
+	VariableValue VariableValue `json:"value"`
 }
 
 type IotDevice struct {
@@ -29,6 +29,14 @@ type IotDevice struct {
 	HubUUID   string         `json:"hubUuid"`
 	Name      string         `json:"name"`
 	Variables []*IotVariable `json:"variables"`
+}
+
+type VariableValue struct {
+	Value gjson.Result
+}
+
+func (value VariableValue) MarshalJSON() ([]byte, error) {
+	return []byte(value.Value.String()), nil
 }
 
 func (device *IotDevice) getVariable(href string) *IotVariable {
@@ -134,7 +142,7 @@ func (server *HubConnectionEndpoint) handleValueUpdate(conn *HubConnection, mess
 
 	deviceID := message.Get("payload.uuid").String()
 	resourceID := message.Get("payload.resource").String()
-	value := message.Get("payload.value").String()
+	value := message.Get("payload.value")
 
 	log.Println("handleValueUpdate " + deviceID + " " + resourceID)
 
@@ -143,9 +151,10 @@ func (server *HubConnectionEndpoint) handleValueUpdate(conn *HubConnection, mess
 		log.Println("Unable to find device with ID" + deviceID)
 		return
 	}
-	device.getVariable(resourceID).Value = value
 
-	log.Println("handleValueUpdate " + conn.getDevice(deviceID).getVariable(resourceID).Value)
+	device.getVariable(resourceID).VariableValue.Value = value
+
+	log.Println("handleValueUpdate " + conn.getDevice(deviceID).getVariable(resourceID).VariableValue.Value.String())
 
 	server.ClientConnectionServer.notifyDeviceResourceChange(device.HubUUID, device.UUID)
 }
@@ -172,8 +181,8 @@ func parseDeviceList(conn *HubConnection, message string) {
 				Name:         variableData.Get("n").String(),
 				Interface:    variableData.Get("if").String(),
 				ResourceType: variableData.Get("rt").String(),
-				Value:        variableData.Get("values").String(),
 			}
+			v.VariableValue.Value = variableData.Get("values")
 			d.Variables = append(d.Variables, v)
 		}
 		conn.DeviceList.PushBack(d)

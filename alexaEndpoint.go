@@ -107,8 +107,8 @@ func onTurnOnOffRequest(hubConnection *HubConnection, device *IotDevice, value b
 func onSetPercentRequest(clientConnection *HubConnection, device *IotDevice, resource string, value int64) {
 	log.Println("onSetPercentRequest " + device.UUID + resource)
 	resourceType := device.getVariable(resource).ResourceType
-	variable := gjson.Parse(device.getVariable(resource).Value)
-	log.Println("onSetPercentRequest " + resource + " variable:" + device.getVariable(resource).Value)
+	variable := device.getVariable(resource).VariableValue.Value
+	log.Println("onSetPercentRequest " + resource + " variable:" + device.getVariable(resource).VariableValue.Value.String())
 	if resourceType == "oic.r.light.dimming" {
 		var max int64
 		if !variable.Get("range").Exists() {
@@ -129,7 +129,7 @@ func onSetPercentRequest(clientConnection *HubConnection, device *IotDevice, res
 }
 func onChangePercentRequest(conn *HubConnection, device *IotDevice, resource string, value int64) {
 	resourceType := device.getVariable(resource).ResourceType
-	variable := gjson.Parse(device.getVariable(resource).Value)
+	variable := device.getVariable(resource).VariableValue.Value
 
 	if resourceType == "oic.r.light.dimming" {
 		var max int64
